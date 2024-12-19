@@ -139,3 +139,19 @@ def main():
     GROUP BY Pays
     ORDER BY Rate DESC
     """
+    df_evolution = execute_sql_query(conn, query_ca_evolution)
+    generate_graph_bar_from_dataframe(df_evolution, "Pays", "Rate", "Evolution du CA (2019-2020)", "ca_evolution.png")
+    top_evolution = df_evolution.iloc[0]
+    evolution_text = f"Pays avec la plus forte évolution du CA : {top_evolution['Pays']} avec un taux de {top_evolution['Rate']}"
+    graphs["slide3_right"] = {"graph": "ca_evolution.png", "text": evolution_text}
+
+    # Slide 4 - Gauche : Coût par produit
+    # Slide 4 - Droite : Répartition des coûts
+
+    update_powerpoint(ppt_file, graphs, ppt_output)
+
+    print(f"Le fichier PowerPoint a été généré avec succès : {ppt_output}")
+
+
+if __name__ == "__main__":
+    main()
