@@ -40,8 +40,26 @@ def execute_sql_query(conn, query):
 def generate_graph_bar_from_dataframe(df, title, x_label, y_label, output_file):
     """Genere un graphique à barres à partir d'un DataFrame"""
 
+    # print("debug head", df.head())
+    print("value x_label:", x_label)
+    print("value y_label:", y_label)
+
     plt.figure(figsize=(8, 6))
+
+    # print("df[x_label]:", df[x_label])
+    # print("df[y_label]:", df[y_label])
+    print("df head IN GENERATE GRAPH:", df.head())
+    print("df SHAPE", df.shape)
+    print("df_x_label SHAPE", df[x_label].shape)
+    print("df_y_label SHAPE", df[y_label].shape)
+    print("df[x_label]:", df[x_label].head())
+    print("df[y_label]:", df[y_label].head())
+    print(f"df[x_label] length: {len(df[x_label])}")
+    print(f"df[y_label] length: {len(df[y_label])}")
+
+
     plt.bar(df[x_label], df[y_label], color=["skyblue", "green", "red"])
+
     plt.title(title)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
@@ -66,25 +84,25 @@ def update_powerpoint(pptx_file, graphs, output_file):
 
     # Slide 3 - Gauche
     slide_3 = ppt.slides[2]
-    slide_3.shapes.add_picture(graphs[slide3_left][graph], Inches(1), Inches(2), width=Inches(5), height=Inches(5))
+    slide_3.shapes.add_picture(graphs["slide3_left"]["graph"], Inches(1), Inches(2), width=Inches(5), height=Inches(5))
     textbox = slide_3.shapes.add_textbox(Inches(1), Inches(6), width=Inches(8), height=Inches(1))
-    textbox.text = graphs[slide3_left][text]
+    textbox.text = graphs["slide3_left"]["text"]
 
     # Slide 3 - Droite
-    slide_3.shapes.add_picture(graphs[slide3_right][graph], Inches(6), Inches(2), width=Inches(5), height=Inches(5))
+    slide_3.shapes.add_picture(graphs["slide3_right"]["graph"], Inches(6), Inches(2), width=Inches(5), height=Inches(5))
     textbox = slide_3.shapes.add_textbox(Inches(1), Inches(6), width=Inches(8), height=Inches(1))
-    textbox.text = graphs[slide3_right][text]
+    textbox.text = graphs["slide3_right"]["text"]
 
-    # Slide 4 - Gauche
-    slide_4 = ppt.slides[3]
-    slide_4.shapes.add_picture(graphs[slide4_left][graph], Inches(1), Inches(2), width=Inches(5), height=Inches(5))
-    textbox = slide_4.shapes.add_textbox(Inches(1), Inches(6), width=Inches(8), height=Inches(1))
-    textbox.text = graphs[slide4_left][text]
+    # # Slide 4 - Gauche
+    # slide_4 = ppt.slides[3]
+    # slide_4.shapes.add_picture(graphs["slide4_left"]["graph"], Inches(1), Inches(2), width=Inches(5), height=Inches(5))
+    # textbox = slide_4.shapes.add_textbox(Inches(1), Inches(6), width=Inches(8), height=Inches(1))
+    # textbox.text = graphs["slide4_left"]["text"]
 
-    # Slide 4 - Droite
-    slide_4.shapes.add_picture(graphs[slide4_right][graph], Inches(6), Inches(2), width=Inches(5), height=Inches(5))    
-    textbox = slide_4.shapes.add_textbox(Inches(1), Inches(6), width=Inches(8), height=Inches(1))
-    textbox.text = graphs[slide4_right][text]
+    # # Slide 4 - Droite
+    # slide_4.shapes.add_picture(graphs["slide4_right"]["graph"], Inches(6), Inches(2), width=Inches(5), height=Inches(5))    
+    # textbox = slide_4.shapes.add_textbox(Inches(1), Inches(6), width=Inches(8), height=Inches(1))
+    # textbox.text = graphs["slide4_right"]["text"]
 
     ppt.save(output_file)
 
@@ -106,18 +124,18 @@ def main():
     query_ca_by_country = """
     SELECT Pays, SUM(CA) AS Total_CA
     FROM (
-        SELECT 'France' AS Pays, Ca from Vente_France)
+        SELECT 'France' AS Pays, Ca FROM Vente_France
         UNION ALL
-        SELECT 'Allemagne' AS Pays, Ca from Vente_Allemagne)
+        SELECT 'Allemagne' AS Pays, Ca FROM Vente_Allemagne
         UNION ALL
-        SELECT 'Pologne' AS Pays, Ca from Vente_Pologne)
+        SELECT 'Pologne' AS Pays, Ca FROM Vente_Pologne
     )
     GROUP BY Pays
     ORDER BY Total_CA DESC
     """
 
     df_ca = execute_sql_query(conn, query_ca_by_country)
-    generate_graph_bar_from_dataframe(df_ca, "Pays", "Total_CA", "Chiffre d'affaires par Pays", "ca_by_country.png")
+    generate_graph_bar_from_dataframe(df_ca, "Chiffre d'affaires par Pays", "Pays", "Total_CA", "ca_by_country.png")
     top_country = df_ca.iloc[0]
     total_ca = df_ca["Total_CA"].sum()
     ca_text = f"Pays avec le CA le plus élevé : {top_country['Pays']} avec {top_country['Total_CA']} ({(top_country['Total_CA'] / total_ca) * 100:.2f}%)"
@@ -130,23 +148,73 @@ def main():
               SUM(CASE WHEN Annee = 2019 THEN CA ELSE 0 END) AS CA_2019,
               SUM(CASE WHEN Annee = 2020 THEN CA ELSE 0 END) - SUM(CASE WHEN Annee = 2019 THEN CA ELSE 0 END) AS Rate
     FROM (
-        SELECT 'France' AS Pays, Annee, Ca FROM Vente_France)
+        SELECT 'France' AS Pays, Annee, Ca FROM Vente_France
         UNION ALL
-        SELECT 'Allemagne' AS Pays, Annee, Ca FROM Vente_Allemagne)
+        SELECT 'Allemagne' AS Pays, Annee, Ca FROM Vente_Allemagne
         UNION ALL
-        SELECT 'Pologne' AS Pays, Annee, Ca FROM Vente_Pologne)
+        SELECT 'Pologne' AS Pays, Annee, Ca FROM Vente_Pologne
     )
     GROUP BY Pays
     ORDER BY Rate DESC
     """
     df_evolution = execute_sql_query(conn, query_ca_evolution)
-    generate_graph_bar_from_dataframe(df_evolution, "Pays", "Rate", "Evolution du CA (2019-2020)", "ca_evolution.png")
+
+    generate_graph_bar_from_dataframe(df_evolution, "Pays", "Rate", "Rate", "ca_evolution.png")
     top_evolution = df_evolution.iloc[0]
     evolution_text = f"Pays avec la plus forte évolution du CA : {top_evolution['Pays']} avec un taux de {top_evolution['Rate']}"
     graphs["slide3_right"] = {"graph": "ca_evolution.png", "text": evolution_text}
 
-    # Slide 4 - Gauche : Coût par produit
-    # Slide 4 - Droite : Répartition des coûts
+    # # Slide 4 - Gauche : Coût par produit
+    # query_cost_per_product = """
+    # SELECT v.Produit,
+    #             SUM(v.CA - c.Cout_France) AS Marge_France,
+    #             SUM(v.CA - c.Cout_Allemagne) AS Marge_Allemagne,
+    #             SUM(v.CA - c.Cout_Pologne) AS Marge_Pologne
+    # FROM (
+    #     SELECT Produit, CA FROM Vente_France
+    #     UNION ALL
+    #     SELECT Produit, CA FROM Vente_Allemagne
+    #     UNION ALL
+    #     SELECT Produit, CA FROM Vente_Pologne
+    # ) v
+    # JOIN Cout c ON v.Produit = c.Produit
+    # GROUP BY v.Produit
+    # ORDER BY Marge_France DESC
+    # """
+    # df_marge = execute_sql_query(conn, query_cost_per_product)
+    # df_marge = df_marge.rename(columns={"Marge_France": "Marge",
+    #                                     "Marge_Allemagne": "Marge",
+    #                                     "Marge_Pologne": "Marge"})
+    
+    # generate_graph_bar_from_dataframe(df_marge, "Marge par produit", "Produit", "Marge", "marge_per_product.png")
+    # top_product = df_marge.iloc[0]
+    # total_marge = df_marge["Marge"].sum()
+    # marge_text = f"Produit avec la plus grande marge : {top_product['Produit']} avec {top_product['Marge']} ({(top_product['Marge'] / total_marge) * 100:.2f}%)"
+    # graphs["slide4_left"] = {"graph": "marge_per_product.png", "text": marge_text}
+
+    # # Slide 4 - Droite : Répartition des coûts
+    # query_cost_distribution = """
+    # SELECT Pays,
+    #             SUM(CA - Cout_France) AS Marge_France,
+    #             SUM(CA - Cout_Allemagne) AS Marge_Allemagne,
+    #             SUM(CA - Cout_Pologne) AS Marge_Pologne
+    # FROM (
+    #     SELECT 'France' AS Pays, Produit, CA FROM Vente_France
+    #     UNION ALL
+    #     SELECT 'Allemagne' AS Pays, Produit, CA FROM Vente_Allemagne
+    #     UNION ALL
+    #     SELECT 'Pologne' AS Pays, Produit, CA FROM Vente_Pologne
+    # ) v
+    # JOIN Cout c ON v.Produit = c.Produit
+    # WHERE v.Produit = '{top_product['Produit']}'
+    # GROUP BY Pays
+    # ORDER BY Marge_France DESC
+    # """
+    # df_distribution = execute_sql_query(conn, query_cost_distribution)
+    # generate_pie_chart_from_dataframe(df_distribution, "Pays", "Marge", "Répartition des coûts", "cost_distribution.png")
+    # top_country_cost = df_distribution.iloc[0]
+    # cost_text = f"Pays avec la plus grande marge : {top_country_cost['Pays']} avec {top_country_cost['Marge']} ({(top_country_cost['Marge'] / total_marge) * 100:.2f}%)"
+    # graphs["slide4_right"] = {"graph": "cost_distribution.png", "text": cost_text}
 
     update_powerpoint(ppt_file, graphs, ppt_output)
 
