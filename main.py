@@ -1,6 +1,10 @@
 import pandas as pd
-import sqlite3
 import matplotlib.pyplot as plt
+import psycopg2
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 
 def load_data_from_excel(file_path):
@@ -16,12 +20,46 @@ def load_data_from_excel(file_path):
     return sheets
 
 
-def load_data_to_sqlite(sheets):
-    """Charge les DataFrames dans une base de données SQLite"""
+def connect_to_postgresql():
+    """Connexion à la base de données PostgreSQL"""
 
-    conn = sqlite3.connect(":memory:")
+    conn = psycopg2.connect(
+        host=os.getenv("DB_HOST"),
+        database=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+    )
+    return conn
+
+
+def load_data_to_postgresql(sheets):
+    """Charge les DataFrames dans une base de données PostgreSQL"""
+
+    # Connexion à la base de données
+    conn = connect_to_postgresql()
+    cursor = conn.cursor()
+
+    # Insérer les données dans PostgreSQL
     for sheet_name, df in sheets.items():
-        df.to_sql(sheet_name, conn, if_exists="replace", index=False)
+        # Créer une table pour chaque feuille Excel si elle n'existe pas
+        create_table_query = f"""
+        CREATE TABLE IF NOT EXISTS {sheet_name} (
+            {', '.join([f"{col} VARCHAR" for col in df.columns])}
+        );
+        """
+        cursor.execute(create_table_query)
+
+        # Insérer les lignes dans la table
+        for row in df.itertuples(index=False, name=None):
+            insert_query = f"""
+            INSERT INTO {sheet_name} ({', '.join([f'"{col}"' for col in df.columns])})
+            VALUES ({','.join(['%s' for _ in df.columns])});
+            """
+            cursor.execute(insert_query, row)
+
+    # Commit et fermeture de la connexion
+    conn.commit()
+    cursor.close()
     return conn
 
 
@@ -221,7 +259,7 @@ def main():
     # Chargement des données depuis Excel
     excel_file = "Test_Données.xlsx"
     sheets = load_data_from_excel(excel_file)
-    conn = load_data_to_sqlite(sheets)
+    conn = load_data_to_postgresql(sheets)
 
     # Création de la figure avec plusieurs sous-graphes
     fig, axs = plt.subplots(2, 2, figsize=(13, 9))  # 2 lignes, 2 colonnes
