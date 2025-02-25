@@ -219,7 +219,7 @@ def section_4(axs, conn):
 
 def main():
     # Chargement des données depuis Excel
-    excel_file = "QuadraticData_Test_Données.xlsx"
+    excel_file = "Test_Données.xlsx"
     sheets = load_data_from_excel(excel_file)
     conn = load_data_to_sqlite(sheets)
 
