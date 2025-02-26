@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import psycopg2
+from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 import os
 
@@ -38,12 +38,9 @@ def connect_to_postgresql():
     print(f"Connexion à PostgreSQL: host={db_host}, db={db_database}, user={db_user}, port={db_port}")
 
     try:
-        conn = psycopg2.connect(
-            host=db_host,
-            database=db_database,
-            user=db_user,
-            password=db_password,
-            port=db_port)
+        connection = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_database}"
+        engine = create_engine(connection)
+        conn = engine.connect()
         print("Connexion réussie.")
         return conn
     except Exception as e:
@@ -56,40 +53,32 @@ def load_data_to_postgresql(sheets):
 
     # Connexion à la base de données
     conn = connect_to_postgresql()
-    cursor = conn.cursor()
-
+    
     # Insérer les données dans PostgreSQL
     for sheet_name, df in sheets.items():
 
         # Nettoyer les noms des colonnes
         df = clean_column_names(df)
 
-        # Créer une table pour chaque feuille Excel si elle n'existe pas
-        create_table_query = f"""
-        CREATE TABLE IF NOT EXISTS {sheet_name} (
-            {', '.join([f"{col} VARCHAR" for col in df.columns])}
-        );
-        """
-        cursor.execute(create_table_query)
-
-        # Insérer les lignes dans la table
-        for row in df.itertuples(index=False, name=None):
-            insert_query = f"""
-            INSERT INTO {sheet_name} ({', '.join([f'"{col}"' for col in df.columns])})
-            VALUES ({','.join(['%s' for _ in df.columns])});
-            """
-            cursor.execute(insert_query, row)
-
-    # Commit et fermeture de la connexion
-    conn.commit()
-    cursor.close()
+        # Insérer les données dans la base de données
+        try:
+            df.to_sql(sheet_name, conn, if_exists='replace', index=False)
+            print(f"Les données de la feuille {sheet_name} ont été insérées avec succès.")
+        except Exception as e:
+            print(f"Une erreur s'est produite lors de l'insertion des données : {e}")        
     return conn
 
 
 def execute_sql_query(conn, query):
     """Exécute une requête SQL et retourne le résultat sous forme de DataFrame"""
-
-    return pd.read_sql_query(query, conn)
+    try:
+        result = conn.execute(text(query))
+        df = pd.DataFrame(result.fetchall(), columns=result.keys())
+        print("Colonne du DataFrame : ", df.columns)
+        return df
+    except Exception as e:
+        print(f"Une erreur s'est produit lors de l'exécution de la requête : {e}")
+        return None
 
 
 def generate_graph_bar_from_dataframe(ax, df, title, x_label, y_label):
@@ -136,19 +125,19 @@ def section_3(axs, conn):
 
     # Graphique 1 : Chiffre d'affaires par pays
     query_ca_by_country = """
-        SELECT Pays, SUM(CAST(CA AS NUMERIC)) AS Total_CA
+        SELECT Pays, SUM(CAST("ca" AS NUMERIC)) AS "Total_CA"
         FROM (
-            SELECT 'France' AS Pays, Ca FROM Vente_France
+            SELECT 'France' AS "pays", "ca" FROM "Vente_France"z
             UNION ALL
-            SELECT 'Allemagne' AS Pays, Ca FROM Vente_Allemagne
+            SELECT 'Allemagne' AS "pays", "ca" FROM "Vente_Allemagne"
             UNION ALL
-            SELECT 'Pologne' AS Pays, Ca FROM Vente_Pologne
+            SELECT 'Pologne' AS "pays", "ca" FROM "Vente_Pologne"
         )
-        GROUP BY Pays
-        ORDER BY Total_CA DESC
+        GROUP BY "pays"
+        ORDER BY "Total_CA" DESC
         """
     df_ca = execute_sql_query(conn, query_ca_by_country)
-    generate_graph_bar_from_dataframe(axs[0, 0], df_ca, "Chiffre d'affaires par Pays", "Pays", "Total_CA")
+    generate_graph_bar_from_dataframe(axs[0, 0], df_ca, "Chiffre d'affaires par Pays", "pays", "Total_CA")
 
     # Afficher les colonnes du DataFrame
     print(df_ca.columns)
@@ -160,7 +149,7 @@ def section_3(axs, conn):
     max_ca_value = max_ca_country["Total_CA"]
     total_ca_sum = df_ca["Total_CA"].sum()
     ca_percentage = (max_ca_value / total_ca_sum) * 100
-    axs[0, 0].text(0.5, -0.3, f"Le pays avec le CA le plus élevé est : {max_ca_country['Pays']} - {max_ca_value} ({ca_percentage:.2f}%)",
+    axs[0, 0].text(0.5, -0.3, f"Le pays avec le CA le plus élevé est : {max_ca_country['pays']} - {max_ca_value} ({ca_percentage:.2f}%)",
                    ha='center', va='center', transform=axs[0, 0].transAxes, fontsize=11)
 
 #     # Graphique 2 : Évolution du CA
