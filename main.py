@@ -289,7 +289,7 @@ def main():
 
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.7) 
-    plt.show()
+    plt.savefig("output.png")
 
 
 if __name__ == "__main__":
