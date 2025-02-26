@@ -90,34 +90,34 @@ def generate_graph_bar_from_dataframe(ax, df, title, x_label, y_label):
     ax.set_ylabel(y_label)
 
 
-# def generate_grouped_bar_chart(ax, df, title, x_label, y_label):
-#     """Génère un graphique à barres groupées à partir d'un DataFrame"""
+def generate_grouped_bar_chart(ax, df, title, x_label, y_label):
+    """Génère un graphique à barres groupées à partir d'un DataFrame"""
 
-#     bar_width = 0.35
-#     index = range(len(df))
+    bar_width = 0.35
+    index = range(len(df))
     
-#     # Barres pour 2019 et 2020
-#     ax.bar(index, df['CA_2019'], width=bar_width, label='2019', color='skyblue')
-#     ax.bar([i + bar_width for i in index], df['CA_2020'], width=bar_width, label='2020', color='orange')
+    # Barres pour 2019 et 2020
+    ax.bar(index, df['CA_2019'], width=bar_width, label='2019', color='skyblue')
+    ax.bar([i + bar_width for i in index], df['CA_2020'], width=bar_width, label='2020', color='orange')
     
-#     ax.set_title(title)
-#     ax.set_xlabel(x_label)
-#     ax.set_ylabel(y_label)
-#     ax.set_xticks([i + bar_width / 2 for i in index])
-#     ax.set_xticklabels(df['Pays'])
-#     ax.legend()
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_xticks([i + bar_width / 2 for i in index])
+    ax.set_xticklabels(df['pays'])
+    ax.legend()
     
-#     # Calculer l'augmentation
-#     df['Increase'] = df['CA_2020'] - df['CA_2019']
-#     max_increase_country = df.loc[df['Increase'].idxmax()]
+    # Calculer l'augmentation
+    df['Increase'] = df['CA_2020'] - df['CA_2019']
+    max_increase_country = df.loc[df['Increase'].idxmax()]
     
-#     # Calculer le pourcentage d'augmentation
-#     increase_value = max_increase_country['Increase']
-#     increase_percentage = (increase_value / max_increase_country['CA_2019']) * 100
+    # Calculer le pourcentage d'augmentation
+    increase_value = max_increase_country['Increase']
+    increase_percentage = (increase_value / max_increase_country['CA_2019']) * 100
 
-#     # Ajouter une annotation pour le pays avec la plus forte augmentation
-#     ax.text(0.5, -0.3, f"Le pays avec la plus forte augmentation de CA est : {max_increase_country['Pays']} - {increase_value} ({increase_percentage:.2f}%)",
-#             ha='center', va='center', transform=ax.transAxes, fontsize=11)
+    # Ajouter une annotation pour le pays avec la plus forte augmentation
+    ax.text(0.5, -0.3, f"Le pays avec la plus forte augmentation de CA est : {max_increase_country['pays']} - {increase_value} ({increase_percentage:.2f}%)",
+            ha='center', va='center', transform=ax.transAxes, fontsize=11)
 
 
 def section_3(axs, conn):
@@ -152,23 +152,23 @@ def section_3(axs, conn):
     axs[0, 0].text(0.5, -0.3, f"Le pays avec le CA le plus élevé est : {max_ca_country['pays']} - {max_ca_value} ({ca_percentage:.2f}%)",
                    ha='center', va='center', transform=axs[0, 0].transAxes, fontsize=11)
 
-#     # Graphique 2 : Évolution du CA
-#     query_ca_evolution = """
-#     SELECT Pays,
-#               SUM(CASE WHEN Annee = 2020 THEN CA ELSE 0 END) AS CA_2020,
-#               SUM(CASE WHEN Annee = 2019 THEN CA ELSE 0 END) AS CA_2019
-#     FROM (
-#         SELECT 'France' AS Pays, Annee, Ca FROM Vente_France
-#         UNION ALL
-#         SELECT 'Allemagne' AS Pays, Annee, Ca FROM Vente_Allemagne
-#         UNION ALL
-#         SELECT 'Pologne' AS Pays, Annee, Ca FROM Vente_Pologne
-#     )
-#     GROUP BY Pays
-#     ORDER BY Pays
-#     """
-#     df_evolution = execute_sql_query(conn, query_ca_evolution)
-#     generate_grouped_bar_chart(axs[0, 1], df_evolution, "Évolution du Chiffre d'Affaires", "Pays", "CA")
+    # Graphique 2 : Évolution du CA
+    query_ca_evolution = """
+    SELECT Pays,
+              SUM(CASE WHEN Annee = 2020 THEN CA ELSE 0 END) AS "CA_2020",
+              SUM(CASE WHEN Annee = 2019 THEN CA ELSE 0 END) AS "CA_2019"
+    FROM (
+        SELECT 'France' AS pays, Annee, Ca FROM "Vente_France"
+        UNION ALL
+        SELECT 'Allemagne' AS pays, Annee, Ca FROM "Vente_Allemagne"
+        UNION ALL
+        SELECT 'Pologne' AS pays, Annee, Ca FROM "Vente_Pologne"
+    )
+    GROUP BY pays
+    ORDER BY pays
+    """
+    df_evolution = execute_sql_query(conn, query_ca_evolution)
+    generate_grouped_bar_chart(axs[0, 1], df_evolution, "Évolution du Chiffre d'Affaires", "pays", "CA")
 
 
 # def generate_margin_bar_chart(ax, df_marge):
