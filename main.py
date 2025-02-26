@@ -7,6 +7,12 @@ import os
 load_dotenv()
 
 
+def clean_column_names(df):
+    """Nettoie les noms des colonnes pour les rendre compatibles avec PostgreSQL"""
+    df.columns = [col.strip().replace(' ', '_').lower() for col in df.columns]
+    return df
+
+
 def load_data_from_excel(file_path):
     """Charge les feuilles Excel nécessaires en DataFrame"""
 
@@ -23,13 +29,26 @@ def load_data_from_excel(file_path):
 def connect_to_postgresql():
     """Connexion à la base de données PostgreSQL"""
 
-    conn = psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        database=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-    )
-    return conn
+    db_host = os.getenv("POSTGRES_HOST")
+    db_database = os.getenv("POSTGRES_DB")
+    db_user = os.getenv("POSTGRES_USER")
+    db_password = os.getenv("POSTGRES_PASSWORD")
+    db_port = os.getenv("POSTGRES_PORT")
+
+    print(f"Connexion à PostgreSQL: host={db_host}, db={db_database}, user={db_user}, port={db_port}")
+
+    try:
+        conn = psycopg2.connect(
+            host=db_host,
+            database=db_database,
+            user=db_user,
+            password=db_password,
+            port=db_port)
+        print("Connexion réussie.")
+        return conn
+    except Exception as e:
+        print(f"Impossible de se connecter à la base de données : {e}")
+        return None
 
 
 def load_data_to_postgresql(sheets):
@@ -41,6 +60,10 @@ def load_data_to_postgresql(sheets):
 
     # Insérer les données dans PostgreSQL
     for sheet_name, df in sheets.items():
+
+        # Nettoyer les noms des colonnes
+        df = clean_column_names(df)
+
         # Créer une table pour chaque feuille Excel si elle n'existe pas
         create_table_query = f"""
         CREATE TABLE IF NOT EXISTS {sheet_name} (
@@ -78,34 +101,34 @@ def generate_graph_bar_from_dataframe(ax, df, title, x_label, y_label):
     ax.set_ylabel(y_label)
 
 
-def generate_grouped_bar_chart(ax, df, title, x_label, y_label):
-    """Génère un graphique à barres groupées à partir d'un DataFrame"""
+# def generate_grouped_bar_chart(ax, df, title, x_label, y_label):
+#     """Génère un graphique à barres groupées à partir d'un DataFrame"""
 
-    bar_width = 0.35
-    index = range(len(df))
+#     bar_width = 0.35
+#     index = range(len(df))
     
-    # Barres pour 2019 et 2020
-    ax.bar(index, df['CA_2019'], width=bar_width, label='2019', color='skyblue')
-    ax.bar([i + bar_width for i in index], df['CA_2020'], width=bar_width, label='2020', color='orange')
+#     # Barres pour 2019 et 2020
+#     ax.bar(index, df['CA_2019'], width=bar_width, label='2019', color='skyblue')
+#     ax.bar([i + bar_width for i in index], df['CA_2020'], width=bar_width, label='2020', color='orange')
     
-    ax.set_title(title)
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
-    ax.set_xticks([i + bar_width / 2 for i in index])
-    ax.set_xticklabels(df['Pays'])
-    ax.legend()
+#     ax.set_title(title)
+#     ax.set_xlabel(x_label)
+#     ax.set_ylabel(y_label)
+#     ax.set_xticks([i + bar_width / 2 for i in index])
+#     ax.set_xticklabels(df['Pays'])
+#     ax.legend()
     
-    # Calculer l'augmentation
-    df['Increase'] = df['CA_2020'] - df['CA_2019']
-    max_increase_country = df.loc[df['Increase'].idxmax()]
+#     # Calculer l'augmentation
+#     df['Increase'] = df['CA_2020'] - df['CA_2019']
+#     max_increase_country = df.loc[df['Increase'].idxmax()]
     
-    # Calculer le pourcentage d'augmentation
-    increase_value = max_increase_country['Increase']
-    increase_percentage = (increase_value / max_increase_country['CA_2019']) * 100
+#     # Calculer le pourcentage d'augmentation
+#     increase_value = max_increase_country['Increase']
+#     increase_percentage = (increase_value / max_increase_country['CA_2019']) * 100
 
-    # Ajouter une annotation pour le pays avec la plus forte augmentation
-    ax.text(0.5, -0.3, f"Le pays avec la plus forte augmentation de CA est : {max_increase_country['Pays']} - {increase_value} ({increase_percentage:.2f}%)",
-            ha='center', va='center', transform=ax.transAxes, fontsize=11)
+#     # Ajouter une annotation pour le pays avec la plus forte augmentation
+#     ax.text(0.5, -0.3, f"Le pays avec la plus forte augmentation de CA est : {max_increase_country['Pays']} - {increase_value} ({increase_percentage:.2f}%)",
+#             ha='center', va='center', transform=ax.transAxes, fontsize=11)
 
 
 def section_3(axs, conn):
@@ -113,19 +136,24 @@ def section_3(axs, conn):
 
     # Graphique 1 : Chiffre d'affaires par pays
     query_ca_by_country = """
-    SELECT Pays, SUM(CA) AS Total_CA
-    FROM (
-        SELECT 'France' AS Pays, Ca FROM Vente_France
-        UNION ALL
-        SELECT 'Allemagne' AS Pays, Ca FROM Vente_Allemagne
-        UNION ALL
-        SELECT 'Pologne' AS Pays, Ca FROM Vente_Pologne
-    )
-    GROUP BY Pays
-    ORDER BY Total_CA DESC
-    """
+        SELECT Pays, SUM(CAST(CA AS NUMERIC)) AS Total_CA
+        FROM (
+            SELECT 'France' AS Pays, Ca FROM Vente_France
+            UNION ALL
+            SELECT 'Allemagne' AS Pays, Ca FROM Vente_Allemagne
+            UNION ALL
+            SELECT 'Pologne' AS Pays, Ca FROM Vente_Pologne
+        )
+        GROUP BY Pays
+        ORDER BY Total_CA DESC
+        """
     df_ca = execute_sql_query(conn, query_ca_by_country)
     generate_graph_bar_from_dataframe(axs[0, 0], df_ca, "Chiffre d'affaires par Pays", "Pays", "Total_CA")
+
+    # Afficher les colonnes du DataFrame
+    print(df_ca.columns)
+
+    generate_graph_bar_from_dataframe(axs[0, 0], df_ca, "Chiffre d'affaires par Pays", "pays", "Total_CA")
 
     # Ajouter une annotation pour le pays avec le CA le plus élevé
     max_ca_country = df_ca.iloc[0]
@@ -135,124 +163,124 @@ def section_3(axs, conn):
     axs[0, 0].text(0.5, -0.3, f"Le pays avec le CA le plus élevé est : {max_ca_country['Pays']} - {max_ca_value} ({ca_percentage:.2f}%)",
                    ha='center', va='center', transform=axs[0, 0].transAxes, fontsize=11)
 
-    # Graphique 2 : Évolution du CA
-    query_ca_evolution = """
-    SELECT Pays,
-              SUM(CASE WHEN Annee = 2020 THEN CA ELSE 0 END) AS CA_2020,
-              SUM(CASE WHEN Annee = 2019 THEN CA ELSE 0 END) AS CA_2019
-    FROM (
-        SELECT 'France' AS Pays, Annee, Ca FROM Vente_France
-        UNION ALL
-        SELECT 'Allemagne' AS Pays, Annee, Ca FROM Vente_Allemagne
-        UNION ALL
-        SELECT 'Pologne' AS Pays, Annee, Ca FROM Vente_Pologne
-    )
-    GROUP BY Pays
-    ORDER BY Pays
-    """
-    df_evolution = execute_sql_query(conn, query_ca_evolution)
-    generate_grouped_bar_chart(axs[0, 1], df_evolution, "Évolution du Chiffre d'Affaires", "Pays", "CA")
+#     # Graphique 2 : Évolution du CA
+#     query_ca_evolution = """
+#     SELECT Pays,
+#               SUM(CASE WHEN Annee = 2020 THEN CA ELSE 0 END) AS CA_2020,
+#               SUM(CASE WHEN Annee = 2019 THEN CA ELSE 0 END) AS CA_2019
+#     FROM (
+#         SELECT 'France' AS Pays, Annee, Ca FROM Vente_France
+#         UNION ALL
+#         SELECT 'Allemagne' AS Pays, Annee, Ca FROM Vente_Allemagne
+#         UNION ALL
+#         SELECT 'Pologne' AS Pays, Annee, Ca FROM Vente_Pologne
+#     )
+#     GROUP BY Pays
+#     ORDER BY Pays
+#     """
+#     df_evolution = execute_sql_query(conn, query_ca_evolution)
+#     generate_grouped_bar_chart(axs[0, 1], df_evolution, "Évolution du Chiffre d'Affaires", "Pays", "CA")
 
 
-def generate_margin_bar_chart(ax, df_marge):
-    """Génère un graphique à barres de la marge par produit."""
+# def generate_margin_bar_chart(ax, df_marge):
+#     """Génère un graphique à barres de la marge par produit."""
 
-    ax.bar(df_marge['Lib_Produit'], df_marge['Marge_Totale'], color='red')
-    ax.set_title("Marge par produit (Tous les pays)")
-    ax.set_xlabel("Produit")
-    ax.set_ylabel("Marge")
-    ax.tick_params(axis='x', rotation=45)
+#     ax.bar(df_marge['Lib_Produit'], df_marge['Marge_Totale'], color='red')
+#     ax.set_title("Marge par produit (Tous les pays)")
+#     ax.set_xlabel("Produit")
+#     ax.set_ylabel("Marge")
+#     ax.tick_params(axis='x', rotation=45)
 
-    # Trouver le produit ayant généré le plus de marge
-    max_margin_product = df_marge.iloc[0]
-    max_margin_value = max_margin_product['Marge_Totale']
-    total_margin = df_marge['Marge_Totale'].sum()
-    margin_percentage = (max_margin_value / total_margin) * 100
+#     # Trouver le produit ayant généré le plus de marge
+#     max_margin_product = df_marge.iloc[0]
+#     max_margin_value = max_margin_product['Marge_Totale']
+#     total_margin = df_marge['Marge_Totale'].sum()
+#     margin_percentage = (max_margin_value / total_margin) * 100
 
-    # Ajouter une annotation sous le graphique avec un décalage
-    ax.text(0.5, -0.3, 
-            f"Le produit avec la marge la plus élevée est : {max_margin_product['Lib_Produit']} - {max_margin_value} ({margin_percentage:.2f}%)",
-            ha='center', va='center', transform=ax.transAxes, fontsize=10)
+#     # Ajouter une annotation sous le graphique avec un décalage
+#     ax.text(0.5, -0.3, 
+#             f"Le produit avec la marge la plus élevée est : {max_margin_product['Lib_Produit']} - {max_margin_value} ({margin_percentage:.2f}%)",
+#             ha='center', va='center', transform=ax.transAxes, fontsize=10)
 
 
-def generate_margin_distribution_pie_chart(ax, total_marges, product_name, labels):
-    """Génère un graphique en camembert de la répartition de la marge par pays."""
+# def generate_margin_distribution_pie_chart(ax, total_marges, product_name, labels):
+#     """Génère un graphique en camembert de la répartition de la marge par pays."""
     
-    # Tracer le graphique en camembert
-    ax.pie(total_marges, labels=labels, autopct='%1.1f%%', startangle=90)
-    ax.set_title(f"Répartition de la marge pour : {product_name}")
+#     # Tracer le graphique en camembert
+#     ax.pie(total_marges, labels=labels, autopct='%1.1f%%', startangle=90)
+#     ax.set_title(f"Répartition de la marge pour : {product_name}")
 
-    # Trouver le pays avec la plus grande part de marge
-    max_idx = total_marges.argmax()  # Trouver l'indice de la marge maximale
-    max_margin_country = labels[max_idx]   # Accéder au label correspondant
-    max_country_margin = total_marges[max_idx]
-    total_margin = total_marges.sum()
-    margin_percentage = (max_country_margin / total_margin) * 100
+#     # Trouver le pays avec la plus grande part de marge
+#     max_idx = total_marges.argmax()  # Trouver l'indice de la marge maximale
+#     max_margin_country = labels[max_idx]   # Accéder au label correspondant
+#     max_country_margin = total_marges[max_idx]
+#     total_margin = total_marges.sum()
+#     margin_percentage = (max_country_margin / total_margin) * 100
 
-    # Ajouter une annotation en dessous du graphique
-    ax.text(0, -1.2, 
-            f"Le pays avec la plus grande part de marge : {max_margin_country} - {max_country_margin} ({margin_percentage:.2f}%)",
-            ha='center', va='center', fontsize=10)
+#     # Ajouter une annotation en dessous du graphique
+#     ax.text(0, -1.2, 
+#             f"Le pays avec la plus grande part de marge : {max_margin_country} - {max_country_margin} ({margin_percentage:.2f}%)",
+#             ha='center', va='center', fontsize=10)
 
 
-def section_4(axs, conn):
-    """Génère les graphiques pour la section 4."""
+# def section_4(axs, conn):
+#     """Génère les graphiques pour la section 4."""
     
-    # Requête SQL pour obtenir la marge par produit pour tous les pays
-    query_cost_per_product = """
-    SELECT rp.Produit,
-           rp.Lib_Produit,
-           SUM(vf.CA - c.Cout_France) AS Marge_France,
-           SUM(va.CA - c.Cout_Allemagne) AS Marge_Allemagne,
-           SUM(vp.CA - c.Cout_Pologne) AS Marge_Pologne,
-           (SUM(vf.CA - c.Cout_France) + SUM(va.CA - c.Cout_Allemagne) + SUM(vp.CA - c.Cout_Pologne)) AS Marge_Totale
-    FROM Referentiel_Produit rp
-    LEFT JOIN (
-        SELECT Produit, CA FROM Vente_France
-    ) vf ON rp.Produit = vf.Produit
-    LEFT JOIN (
-        SELECT Produit, CA FROM Vente_Allemagne
-    ) va ON rp.Produit = va.Produit
-    LEFT JOIN (
-        SELECT Produit, CA FROM Vente_Pologne
-    ) vp ON rp.Produit = vp.Produit
-    JOIN Cout c ON rp.Produit = c.Produit
-    GROUP BY rp.Produit, rp.Lib_Produit
-    ORDER BY Marge_Totale DESC
-    """
+#     # Requête SQL pour obtenir la marge par produit pour tous les pays
+#     query_cost_per_product = """
+#     SELECT rp.Produit,
+#            rp.Lib_Produit,
+#            SUM(vf.CA - c.Cout_France) AS Marge_France,
+#            SUM(va.CA - c.Cout_Allemagne) AS Marge_Allemagne,
+#            SUM(vp.CA - c.Cout_Pologne) AS Marge_Pologne,
+#            (SUM(vf.CA - c.Cout_France) + SUM(va.CA - c.Cout_Allemagne) + SUM(vp.CA - c.Cout_Pologne)) AS Marge_Totale
+#     FROM Referentiel_Produit rp
+#     LEFT JOIN (
+#         SELECT Produit, CA FROM Vente_France
+#     ) vf ON rp.Produit = vf.Produit
+#     LEFT JOIN (
+#         SELECT Produit, CA FROM Vente_Allemagne
+#     ) va ON rp.Produit = va.Produit
+#     LEFT JOIN (
+#         SELECT Produit, CA FROM Vente_Pologne
+#     ) vp ON rp.Produit = vp.Produit
+#     JOIN Cout c ON rp.Produit = c.Produit
+#     GROUP BY rp.Produit, rp.Lib_Produit
+#     ORDER BY Marge_Totale DESC
+#     """
 
-    df_marge = execute_sql_query(conn, query_cost_per_product)
+#     df_marge = execute_sql_query(conn, query_cost_per_product)
 
-    # Graphique 3 de la marge par produit
-    generate_margin_bar_chart(axs[1, 0], df_marge)
+#     # Graphique 3 de la marge par produit
+#     generate_margin_bar_chart(axs[1, 0], df_marge)
 
-    # Trouver le produit ayant généré le plus de marge
-    max_margin_product = df_marge.iloc[0]
+#     # Trouver le produit ayant généré le plus de marge
+#     max_margin_product = df_marge.iloc[0]
 
-    # Section 4 : Répartition de la marge par pays
-    query_margin_distribution = f"""
-    SELECT 
-        SUM(vf.CA - c.Cout_France) AS Marge_France,
-        SUM(va.CA - c.Cout_Allemagne) AS Marge_Allemagne,
-        SUM(vp.CA - c.Cout_Pologne) AS Marge_Pologne
-    FROM Cout c
-    LEFT JOIN Vente_France vf ON vf.Produit = c.Produit
-    LEFT JOIN Vente_Allemagne va ON va.Produit = c.Produit
-    LEFT JOIN Vente_Pologne vp ON vp.Produit = c.Produit
-    WHERE vf.Produit = '{max_margin_product['Produit']}' OR 
-          va.Produit = '{max_margin_product['Produit']}' OR 
-          vp.Produit = '{max_margin_product['Produit']}'
-    """
+#     # Section 4 : Répartition de la marge par pays
+#     query_margin_distribution = f"""
+#     SELECT 
+#         SUM(vf.CA - c.Cout_France) AS Marge_France,
+#         SUM(va.CA - c.Cout_Allemagne) AS Marge_Allemagne,
+#         SUM(vp.CA - c.Cout_Pologne) AS Marge_Pologne
+#     FROM Cout c
+#     LEFT JOIN Vente_France vf ON vf.Produit = c.Produit
+#     LEFT JOIN Vente_Allemagne va ON va.Produit = c.Produit
+#     LEFT JOIN Vente_Pologne vp ON vp.Produit = c.Produit
+#     WHERE vf.Produit = '{max_margin_product['Produit']}' OR 
+#           va.Produit = '{max_margin_product['Produit']}' OR 
+#           vp.Produit = '{max_margin_product['Produit']}'
+#     """
 
-    df_distribution = execute_sql_query(conn, query_margin_distribution)
+#     df_distribution = execute_sql_query(conn, query_margin_distribution)
     
-    # Calcul des totaux pour chaque pays
-    total_marges = df_distribution[['Marge_France', 'Marge_Allemagne', 'Marge_Pologne']].values.flatten()
-    labels = ['France', 'Allemagne', 'Pologne']
+#     # Calcul des totaux pour chaque pays
+#     total_marges = df_distribution[['Marge_France', 'Marge_Allemagne', 'Marge_Pologne']].values.flatten()
+#     labels = ['France', 'Allemagne', 'Pologne']
 
-    # Appeler la fonction pour générer le graphique
-    ax = axs[1, 1] 
-    generate_margin_distribution_pie_chart(ax, total_marges, max_margin_product['Lib_Produit'], labels)
+#     # Appeler la fonction pour générer le graphique
+#     ax = axs[1, 1] 
+#     generate_margin_distribution_pie_chart(ax, total_marges, max_margin_product['Lib_Produit'], labels)
 
 
 def main():
@@ -267,8 +295,8 @@ def main():
     # Section 3
     section_3(axs, conn)
 
-    # Section 4 - Marge par produit et répartition de la marge par pays
-    section_4(axs, conn)
+    # # Section 4 - Marge par produit et répartition de la marge par pays
+    # section_4(axs, conn)
 
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.7) 
