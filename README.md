@@ -1,10 +1,11 @@
-Projet d'Analyse des Données de Vente
+# Projet d'Analyse des Données de Vente
 
-Description
+## Description
 
 Ce projet permet d'extraire, transformer et analyser des données de ventes provenant d'un fichier Excel et de les stocker dans une base de données PostgreSQL via Docker. Une analyse visuelle est réalisée à l'aide de Matplotlib.
 
-Structure du projet
+## Structure du projet
+
 
 ├── docker-compose.yml
 ├── main.py
@@ -13,7 +14,7 @@ Structure du projet
 ├── requirements.txt
 ├── Test_Données.xlsx
 
-Prérequis
+## Prérequis
 
 Python 3.x
 
@@ -21,13 +22,14 @@ Docker et Docker Compose
 
 Fichier .env contenant les variables de connexion PostgreSQL :
 
-POSTGRES_HOST=localhost
-POSTGRES_DB=nom_de_la_base
-POSTGRES_USER=utilisateur
-POSTGRES_PASSWORD=mot_de_passe
-POSTGRES_PORT=5432
+```env```
+- `POSTGRES_HOST=localhost`
+- `POSTGRES_DB=nom_de_la_base`
+- `POSTGRES_USER=utilisateur`
+- `POSTGRES_PASSWORD=mot_de_passe`
+- `POSTGRES_PORT=5432`
 
-Installation
+## Installation
 
 Cloner le dépôt
 
@@ -46,7 +48,7 @@ Charger les données dans PostgreSQL
 
 python main.py
 
-Utilisation du Makefile
+## Utilisation du Makefile
 
 Le Makefile permet de gérer facilement le conteneur PostgreSQL avec Docker.
 
@@ -70,7 +72,7 @@ Lister les images Docker : make images
 
 Lister les volumes Docker : make volumes
 
-Fonctionnalités principales
+## Fonctionnalités principales
 
 Chargement des données depuis Excel : Extraction de plusieurs feuilles et nettoyage des colonnes.
 
