@@ -8,7 +8,9 @@ load_dotenv()
 
 
 def clean_column_names(df):
-    """Nettoie les noms des colonnes pour les rendre compatibles avec PostgreSQL"""
+    """Nettoie les noms des colonnes du DataFrame
+    pour les rendre compatibles avec PostgreSQL"""
+
     df.columns = [col.strip().replace(' ', '_').lower() for col in df.columns]
     return df
 
@@ -35,7 +37,7 @@ def connect_to_postgresql():
     db_password = os.getenv("POSTGRES_PASSWORD")
     db_port = os.getenv("POSTGRES_PORT")
 
-    print(f"Connexion à PostgreSQL: host={db_host}, db={db_database}, user={db_user}, port={db_port}")
+    print(f"Connexion à PostgreSQL: host={db_host}, db={db_database},user={db_user}, port={db_port}")
 
     try:
         connection = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_database}"
@@ -43,39 +45,45 @@ def connect_to_postgresql():
         conn = engine.connect()
         print("Connexion réussie.")
         return conn
+
     except Exception as e:
         print(f"Impossible de se connecter à la base de données : {e}")
         return None
 
 
 def load_data_to_postgresql(sheets):
-    """Charge les DataFrames dans une base de données PostgreSQL"""
+    """Charge le dictionnaire de DataFrames
+    dans une base de données PostgreSQL"""
 
     # Connexion à la base de données
     conn = connect_to_postgresql()
-    
-    # Insérer les données dans PostgreSQL
-    for sheet_name, df in sheets.items():
+    if conn:
+        # Parcourir les feuilles et insérer les données dans la base de données
+        for sheet_name, df in sheets.items():
 
-        # Nettoyer les noms des colonnes
-        df = clean_column_names(df)
+            # Nettoyer les noms des colonnes
+            df = clean_column_names(df)
 
-        # Insérer les données dans la base de données
-        try:
-            df.to_sql(sheet_name, conn, if_exists='replace', index=False)
-            print(f"Les données de la feuille {sheet_name} ont été insérées avec succès.")
-        except Exception as e:
-            print(f"Une erreur s'est produite lors de l'insertion des données : {e}")        
-    return conn
+            # Insérer les données dans la base de données
+            try:
+                df.to_sql(sheet_name, conn, if_exists='replace', index=False)
+                print(f"Les données de la feuille {sheet_name} ont été insérées avec succès.")
+            except Exception as e:
+                print(f"Une erreur s'est produite lors de l'insertion des données : {e}")        
+        return conn
+    else:
+        return None
 
 
 def execute_sql_query(conn, query):
     """Exécute une requête SQL et retourne le résultat sous forme de DataFrame"""
+
     try:
         result = conn.execute(text(query))
         df = pd.DataFrame(result.fetchall(), columns=result.keys())
         print("Colonne du DataFrame : ", df.columns)
         return df
+
     except Exception as e:
         print(f"Une erreur s'est produit lors de l'exécution de la requête : {e}")
         return None
